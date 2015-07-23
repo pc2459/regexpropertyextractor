@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8">
+		<link href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/3.3.5/css/bootstrap.min.css" rel="stylesheet">
+		<link href='http://fonts.googleapis.com/css?family=Source+Code+Pro:400,700' rel='stylesheet' type='text/css'>
+		<style>
+			html, body {
+				font-family: 'Source Code Pro', Courier;
+				font-size: 14px;
+				height: 100%;
+			}
+			.container {
+				display: -webkit-box;
+				display: -moz-box;
+				display: -ms-flexbox;
+				display: -webkit-flex;
+				display: flex;
+				flex-flow: column;
+			}
+
+			.row-flex, .row-flex > div[class*='col-'] {  
+				display: -webkit-box;
+				display: -moz-box;
+				display: -ms-flexbox;
+				display: -webkit-flex;
+				display: flex;
+				flex: 1 1 auto;
+			}		
+
+			.flex-col {
+				display: flex;
+				flex: 1 100%;
+				flex-flow: column;
+			}
+
+			.flex-grow {
+				display: flex;
+				flex: 2;
+			}
+
+			.form-group {
+				display: flex;
+			}
+
+			.full-width {
+				width: 100%;
+			}
+
+			.form-inline input {
+				flex: 2;
+			}
+
+			.shim-right {
+				margin-right: 10px;
+			}
+
+			.shim-left {
+				margin-left: 10px;
+			}
+
+			textarea {
+				margin-bottom: 6px;
+			}
+
+
+		</style>
+		<title>Regex Property Copying Utility</title>
+	</head>
+
+	<body class="container">
+		<div>
+			<h2>Get Those Properties</h2>
+		</div>
+		<div class="row row-flex ">
+
+			
+			<div class="box col-md-6">
+				<div class="flex-col">
+					<textarea name="inputs" id="inputs" class="flex-grow" placeholder="Input a list of newline-separated properties. 
+
+Hint: Sublime users can use Alt-F3 to select multiple instances. So if you're copying over a page with multiple Model.[whatever], Alt-F3 'Model.', Ctrl-Shift-(->) to select the next few words, then copy/paste. Also useful: Ctrl-A then Ctrl-Shift-L to put a cursor on all lines."></textarea>
+					<p class="inputNumber">You have input 0 properties</p>
+					<textarea name="rawdata" id="rawdata" class="flex-grow" placeholder="Paste your data file here. It can include any amount of fluff, but the properties you're trying to extract MUST have an accessibility modifier AND a type"></textarea>
+					<div class="form-group">
+						<button class="btn btn-success full-width" id="extract">Gimme those properties</button>
+					</div>
+				</div>
+			</div>
+			<div class="box col-md-6">
+				<div class="flex-col">
+					<textarea name="results" id="results" class="flex-grow" placeholder="Results!"></textarea>
+					<p class="outputNumber">You got out 0 properties</p>
+
+					<div class="checkbox">
+						<label>
+							<input type="checkbox" class="accessmods">
+							Strip access modifiers (useful for copying into interfaces)
+						</label>
+					</div>
+
+					<div class="checkbox">
+						<label>
+							<input type="checkbox" class="accessors">
+							Add/remove accessors ( { get; set; })
+						</label>
+					</div>
+					
+					<div class="form-group form-inline">
+						<input type="text" class="form-control shim-right" id="parentProp" placeholder="Parent property to copy from">
+						<button class="btn btn-primary form-control" id="assign">Assign resultant properties</button>
+					</div>
+					
+				</div>
+			</div>
+		</div>
+	</body>
+
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/2.1.4/jquery.min.js"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/3.10.0/lodash.min.js"></script>
+
+	<script type="text/javascript">
+
+	var inputs;
+	var $resultsBox = $('#results');
+
+	var toggleAccessors = function() {
+		var results = grabData('#results');
+		
+		// case insensitive searche for { get; set; } surrounded by any amount of whitespace 
+		var regex = /\s*{\s*get;\s*set;\s*}/i;
+		_.forEach(results, function(n,i){
+
+			if(regex.exec(n) != null) {
+				n = n.replace(regex, ';');
+			}
+			else {
+				n = n.replace(';', '');
+				n = n + ' { get; set; }';
+			}
+
+			results[i] = n;
+		});
+
+		$('.outputNumber').html("You got out " + results.length + " properties");
+		var formattedResults = results.join('\n');
+		$resultsBox.val(formattedResults);
+	};
+
+	var stripAccessMods = function() {
+		var results = grabData('#results');
+		var regex = /(public|private|protected|internal)\s+/gi;
+		_.forEach(results, function(n, i) {
+			results[i] = n.replace(regex, '');
+		});
+
+		$('.outputNumber').html("You got out " + results.length + " properties");
+
+		var formattedResults = results.join('\n');
+		$resultsBox.val(formattedResults);
+
+	};
+
+	var assignFromParent = function() {
+
+		var parent = $('#parentProp').val();
+		var results = grabData('#results');
+
+		var regex = /(public|private|protected|internal)\s+/i;
+		// searches for an accessibility mod, followed by 1+ whitespaces, then 
+		// the next word and 1+ whitespaces after
+		var regexModsAndTypes = /(public|private|protected|internal)\s+\S*\s+/gi
+		// searches for a word at the start of the line, followed by 1+ whitespaces
+		var regexTypes = /^\S+\s+/;
+		
+		_.forEach(results, function(n, i) {
+			n = n.replace(';', '');
+			if (regex.exec(n) != null){
+				n = n.replace(regexModsAndTypes, '');
+			}
+			else {
+				n = n.replace(regexTypes, '');
+			}
+			results[i] = n + ' = ' + parent + '.' + n;
+		});
+
+		$('.outputNumber').html("You got out " + results.length + " properties");
+
+		var formattedResults = results.join(',\n');
+		$resultsBox.val(formattedResults);
+
+	};
+
+	var grabData = function(element)
+	{
+		var output;
+		output = $(element).val().split('\n');
+		var emptyRE = /^\s+$/g;
+
+		_.remove(output, function(n) {
+			var isWhitespace = emptyRE.exec(n) !== null
+			return isWhitespace || n === "";
+		});
+
+		return output;
+	};
+
+	var extractProperties = function()
+	{
+		inputs = grabData('#inputs');
+		var data = $('#rawdata').val();
+
+		// searches for accessibility modifiers separated by 1+ spaces (\s+) from a word (.*)
+		// separated by 1+ spaces from one of a list of inputs ((..|..|)) and then the end of word
+		// searches globally (g) and is case-insensitive (i) 
+		var regex = new RegExp("(public|private|protected|internal)\\s+(.*)\\s+(" + inputs.join("|") + ")\\b", "gi");
+
+		var result; 
+		var results = [];
+
+		while((result = regex.exec(data)) != null) {
+			results.push(result[0]);
+		}
+		var formattedResults = results.join(';\n');
+		formattedResults = formattedResults + ';';
+
+		if (results.length === 0) {
+			$resultsBox.val("Your regex helper found nothing ):");
+			return;
+		}
+
+		$('.outputNumber').html("You got out " + results.length + " properties");
+		$resultsBox.val(formattedResults);
+		
+	};
+
+	var sanityCheckInput = function()
+	{
+		inputs = grabData('#inputs');
+		var originalLength = inputs.length;
+		inputs = _.uniq(inputs);
+		var $inputCheckMessage = $('.inputNumber');
+		$inputCheckMessage.html("You put in " + inputs.length + " <strong>unique</strong> properties (out of " + originalLength + " total)");
+	}
+
+	$('#inputs').on('change', sanityCheckInput);
+	$('#extract').on('click', function() { console.log("clicked"); });
+	$('#extract').on('click', extractProperties);
+	$('.accessmods').on('click', stripAccessMods);
+	$('#assign').on('click', function() { console.log("clicked assign"); });
+	$('#assign').on('click', assignFromParent);
+	$('.accessors').on('click', toggleAccessors);
+
+	</script>
+</html>
