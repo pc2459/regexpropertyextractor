@@ -2,6 +2,8 @@
 
 It's quick! It's dirty! It has bad css, a Google font, and inline scripts! But it works, and you can hack it till it does what you want. Which is to extract accessibility modifiers and types from a giant pre-existing list of C# properties given a list of property names. 
 
+P.S: yes, I'm aware this is all on the global scope and everything is awful. Refactor coming soon. But now to code what I was supposed to before getting distracted...
+
 ## What You Need
 
 * A newline-delimited list of property names. 
