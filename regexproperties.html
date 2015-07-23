@@ -121,135 +121,158 @@ Hint: Sublime users can use Alt-F3 to select multiple instances. So if you're co
 
 	<script type="text/javascript">
 
-	var inputs;
-	var $resultsBox = $('#results');
+	$(document).on('ready', function() {
 
-	var toggleAccessors = function() {
-		var results = grabData('#results');
-		
-		// case insensitive searche for { get; set; } surrounded by any amount of whitespace 
-		var regex = /\s*{\s*get;\s*set;\s*}/i;
-		_.forEach(results, function(n,i){
+		var pageApp = new RegexExtractor();
+		pageApp.init();
 
-			if(regex.exec(n) != null) {
-				n = n.replace(regex, ';');
-			}
-			else {
+	});
+
+	var RegexExtractor = (function() {
+
+		var App = function() {
+
+			this.$resultsBox = $('#results');
+		};
+
+		App.prototype.init = function()
+		{
+			$('#inputs').on('change', $.proxy(this.sanityCheckInput, this));
+			$('#extract').on('click', $.proxy(this.extractProperties, this));
+			$('.accessmods').on('click', $.proxy(this.stripAccessMods, this));
+			$('#assign').on('click', $.proxy(this.assignFromParent, this));
+			$('.accessors').on('click', $.proxy(this.toggleAccessors, this));
+		};
+
+		App.prototype.grabData = function(element)
+		{
+			var output;
+			output = $(element).val().split('\n');
+			var emptyRE = /^\s+$/g;
+
+			_.remove(output, function(n) {
+				var isWhitespace = emptyRE.exec(n) !== null
+				return isWhitespace || n === "";
+			});
+
+			return output;
+		};
+
+		App.prototype.toggleAccessors = function() {
+			console.log(results);
+			// case insensitive searche for { get; set; } surrounded by any amount of whitespace 
+			var regex = /\s*{\s*get;\s*set;\s*}/i;
+			_.forEach(results, function(n,i){
+
+				if(regex.exec(n) != null) {
+					n = n.replace(regex, ';');
+				}
+				else {
+					n = n.replace(';', '');
+					n = n + ' { get; set; }';
+				}
+
+				results[i] = n;
+			});
+			
+
+			$('.outputNumber').html("You got out " + results.length + " properties");
+			var formattedResults = results.join('\n');
+			this.$resultsBox.val(formattedResults);
+		};
+
+		App.prototype.stripAccessMods = function() {
+			var results = this.grabData('#results');
+			var regex = /(public|private|protected|internal)\s+/gi;
+			_.forEach(results, function(n, i) {
+				results[i] = n.replace(regex, '');
+			});
+
+			$('.outputNumber').html("You got out " + results.length + " properties");
+
+			var formattedResults = results.join('\n');
+			this.$resultsBox.val(formattedResults);
+
+		};
+
+		App.prototype.assignFromParent = function() {
+
+			var parent = $('#parentProp').val();
+			var results = this.grabData('#results');
+
+			var regex = /(public|private|protected|internal)\s+/i;
+			// searches for an accessibility mod, followed by 1+ whitespaces, then 
+			// the next word and 1+ whitespaces after
+			var regexModsAndTypes = /(public|private|protected|internal)\s+\S*\s+/gi
+			// searches for a word at the start of the line, followed by 1+ whitespaces
+			var regexTypes = /^\S+\s+/;
+			
+			_.forEach(results, function(n, i) {
 				n = n.replace(';', '');
-				n = n + ' { get; set; }';
+				if (regex.exec(n) != null){
+					n = n.replace(regexModsAndTypes, '');
+				}
+				else {
+					n = n.replace(regexTypes, '');
+				}
+				results[i] = n + ' = ' + parent + '.' + n;
+			});
+
+			$('.outputNumber').html("You got out " + results.length + " properties");
+
+			var formattedResults = results.join(',\n');
+			this.$resultsBox.val(formattedResults);
+
+		};
+
+
+
+		App.prototype.extractProperties = function()
+		{
+			this.inputs = this.grabData('#inputs');
+			var data = $('#rawdata').val();
+
+			// searches for accessibility modifiers separated by 1+ spaces (\s+) from a word (.*)
+			// separated by 1+ spaces from one of a list of inputs ((..|..|)) and then the end of word
+			// searches globally (g) and is case-insensitive (i) 
+			var regex = new RegExp("(public|private|protected|internal)\\s+(.*)\\s+(" + this.inputs.join("|") + ")\\b", "gi");
+
+			var result; 
+			var results = [];
+
+			while((result = regex.exec(data)) != null) {
+				results.push(result[0]);
+			}
+			var formattedResults = results.join(';\n');
+			formattedResults = formattedResults + ';';
+
+			if (results.length === 0) {
+				this.$resultsBox.val("Your regex helper found nothing ):");
+				return;
 			}
 
-			results[i] = n;
-		});
+			$('.outputNumber').html("You got out " + results.length + " properties");
+			this.$resultsBox.val(formattedResults);
+			
+		};
 
-		$('.outputNumber').html("You got out " + results.length + " properties");
-		var formattedResults = results.join('\n');
-		$resultsBox.val(formattedResults);
-	};
-
-	var stripAccessMods = function() {
-		var results = grabData('#results');
-		var regex = /(public|private|protected|internal)\s+/gi;
-		_.forEach(results, function(n, i) {
-			results[i] = n.replace(regex, '');
-		});
-
-		$('.outputNumber').html("You got out " + results.length + " properties");
-
-		var formattedResults = results.join('\n');
-		$resultsBox.val(formattedResults);
-
-	};
-
-	var assignFromParent = function() {
-
-		var parent = $('#parentProp').val();
-		var results = grabData('#results');
-
-		var regex = /(public|private|protected|internal)\s+/i;
-		// searches for an accessibility mod, followed by 1+ whitespaces, then 
-		// the next word and 1+ whitespaces after
-		var regexModsAndTypes = /(public|private|protected|internal)\s+\S*\s+/gi
-		// searches for a word at the start of the line, followed by 1+ whitespaces
-		var regexTypes = /^\S+\s+/;
-		
-		_.forEach(results, function(n, i) {
-			n = n.replace(';', '');
-			if (regex.exec(n) != null){
-				n = n.replace(regexModsAndTypes, '');
-			}
-			else {
-				n = n.replace(regexTypes, '');
-			}
-			results[i] = n + ' = ' + parent + '.' + n;
-		});
-
-		$('.outputNumber').html("You got out " + results.length + " properties");
-
-		var formattedResults = results.join(',\n');
-		$resultsBox.val(formattedResults);
-
-	};
-
-	var grabData = function(element)
-	{
-		var output;
-		output = $(element).val().split('\n');
-		var emptyRE = /^\s+$/g;
-
-		_.remove(output, function(n) {
-			var isWhitespace = emptyRE.exec(n) !== null
-			return isWhitespace || n === "";
-		});
-
-		return output;
-	};
-
-	var extractProperties = function()
-	{
-		inputs = grabData('#inputs');
-		var data = $('#rawdata').val();
-
-		// searches for accessibility modifiers separated by 1+ spaces (\s+) from a word (.*)
-		// separated by 1+ spaces from one of a list of inputs ((..|..|)) and then the end of word
-		// searches globally (g) and is case-insensitive (i) 
-		var regex = new RegExp("(public|private|protected|internal)\\s+(.*)\\s+(" + inputs.join("|") + ")\\b", "gi");
-
-		var result; 
-		var results = [];
-
-		while((result = regex.exec(data)) != null) {
-			results.push(result[0]);
-		}
-		var formattedResults = results.join(';\n');
-		formattedResults = formattedResults + ';';
-
-		if (results.length === 0) {
-			$resultsBox.val("Your regex helper found nothing ):");
-			return;
+		App.prototype.sanityCheckInput = function()
+		{
+			this.inputs = this.grabData('#inputs');
+			var originalLength = this.inputs.length;
+			this.inputs = _.uniq(this.inputs);
+			var $inputCheckMessage = $('.inputNumber');
+			$inputCheckMessage.html("You put in " + this.inputs.length + " <strong>unique</strong> properties (out of " + originalLength + " total)");
 		}
 
-		$('.outputNumber').html("You got out " + results.length + " properties");
-		$resultsBox.val(formattedResults);
-		
-	};
+		console.log("APP", App);
 
-	var sanityCheckInput = function()
-	{
-		inputs = grabData('#inputs');
-		var originalLength = inputs.length;
-		inputs = _.uniq(inputs);
-		var $inputCheckMessage = $('.inputNumber');
-		$inputCheckMessage.html("You put in " + inputs.length + " <strong>unique</strong> properties (out of " + originalLength + " total)");
-	}
+		return App;
+	})();
 
-	$('#inputs').on('change', sanityCheckInput);
-	$('#extract').on('click', function() { console.log("clicked"); });
-	$('#extract').on('click', extractProperties);
-	$('.accessmods').on('click', stripAccessMods);
-	$('#assign').on('click', function() { console.log("clicked assign"); });
-	$('#assign').on('click', assignFromParent);
-	$('.accessors').on('click', toggleAccessors);
+	
+
+
 
 	</script>
 </html>
