@@ -159,7 +159,7 @@ Hint: Sublime users can use Alt-F3 to select multiple instances. So if you're co
 		};
 
 		App.prototype.toggleAccessors = function() {
-			console.log(results);
+			var results = this.grabData('#results');
 			// case insensitive searche for { get; set; } surrounded by any amount of whitespace 
 			var regex = /\s*{\s*get;\s*set;\s*}/i;
 			_.forEach(results, function(n,i){
@@ -174,7 +174,6 @@ Hint: Sublime users can use Alt-F3 to select multiple instances. So if you're co
 
 				results[i] = n;
 			});
-			
 
 			$('.outputNumber').html("You got out " + results.length + " properties");
 			var formattedResults = results.join('\n');
@@ -264,8 +263,6 @@ Hint: Sublime users can use Alt-F3 to select multiple instances. So if you're co
 			var $inputCheckMessage = $('.inputNumber');
 			$inputCheckMessage.html("You put in " + this.inputs.length + " <strong>unique</strong> properties (out of " + originalLength + " total)");
 		}
-
-		console.log("APP", App);
 
 		return App;
 	})();
