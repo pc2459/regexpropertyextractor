@@ -130,6 +130,8 @@ Hint: Sublime users can use Alt-F3 to select multiple instances. So if you're co
 
 	var RegexExtractor = (function() {
 
+
+
 		var App = function() {
 
 			this.$resultsBox = $('#results');
@@ -142,6 +144,8 @@ Hint: Sublime users can use Alt-F3 to select multiple instances. So if you're co
 			$('.accessmods').on('click', $.proxy(this.stripAccessMods, this));
 			$('#assign').on('click', $.proxy(this.assignFromParent, this));
 			$('.accessors').on('click', $.proxy(this.toggleAccessors, this));
+
+			this.storeLocally();
 		};
 
 		App.prototype.grabData = function(element)
@@ -191,6 +195,7 @@ Hint: Sublime users can use Alt-F3 to select multiple instances. So if you're co
 
 			var formattedResults = results.join('\n');
 			this.$resultsBox.val(formattedResults);
+			$('.accessmods').attr('disabled', true);
 
 		};
 
@@ -203,17 +208,24 @@ Hint: Sublime users can use Alt-F3 to select multiple instances. So if you're co
 			// searches for an accessibility mod, followed by 1+ whitespaces, then 
 			// the next word and 1+ whitespaces after
 			var regexModsAndTypes = /(public|private|protected|internal)\s+\S*\s+/gi
+			var regexAccesors = /\s*{\s*get;\s*set;\s*}/i;
 			// searches for a word at the start of the line, followed by 1+ whitespaces
 			var regexTypes = /^\S+\s+/;
 			
 			_.forEach(results, function(n, i) {
-				n = n.replace(';', '');
+				
+				console.log(n);
+				if(regexAccesors.exec(n) != null){
+					console.log("????????");
+					n = n.replace(regexAccesors, '')
+				}
 				if (regex.exec(n) != null){
 					n = n.replace(regexModsAndTypes, '');
 				}
 				else {
 					n = n.replace(regexTypes, '');
 				}
+				n = n.replace(';', '');
 				results[i] = n + ' = ' + parent + '.' + n;
 			});
 
@@ -252,6 +264,9 @@ Hint: Sublime users can use Alt-F3 to select multiple instances. So if you're co
 
 			$('.outputNumber').html("You got out " + results.length + " properties");
 			this.$resultsBox.val(formattedResults);
+
+			$('.accessmods').attr('disabled', false).removeAttr('checked');
+			$('.accessors').removeAttr('checked');
 			
 		};
 
@@ -262,6 +277,38 @@ Hint: Sublime users can use Alt-F3 to select multiple instances. So if you're co
 			this.inputs = _.uniq(this.inputs);
 			var $inputCheckMessage = $('.inputNumber');
 			$inputCheckMessage.html("You put in " + this.inputs.length + " <strong>unique</strong> properties (out of " + originalLength + " total)");
+		}
+
+		// some localstorage stuff
+
+		var supportsLocalStorage = function() {
+			return typeof(Storage)!== 'undefined';
+		};
+
+		App.prototype.storeLocally = function()
+		{
+			var $props = $("#inputs");
+			var $rawdata = $("#rawdata");
+
+			if (supportsLocalStorage()){
+
+				// fetch anything stored
+				if (localStorage.getItem('savedProps')) {
+					$props.val(localStorage.getItem('savedProps'));
+				}
+
+				if (localStorage.getItem('savedData')) {
+					$rawdata.val(localStorage.getItem('savedData'));
+				}
+
+				// autosave
+				setInterval(function() {
+					localStorage.setItem('savedProps', $props.val());
+					localStorage.setItem('savedData', $rawdata.val());
+				}, 1000);
+
+			}
+
 		}
 
 		return App;
